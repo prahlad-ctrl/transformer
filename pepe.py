@@ -13,7 +13,7 @@ class InputEmbedding(nn.Module):
         self.embedding = nn.Embedding(vocab_size, dmodel)
         
     def forward(self, x):
-        return self.embedding(x) *math.sqrt(self.dmodel) # stabilizes variance
+        return self.embedding(x) * math.sqrt(self.dmodel) # stabilizes variance
     
 '''POSITIONAL ENCODING'''
 
@@ -27,8 +27,8 @@ class PositionalEncoding(nn.Module):
         pe = torch.zeros(seq_len, dmodel) # pe dim=(seq_len, dmodel)
         pos = torch.arange(0, seq_len, dtype=torch.float32).unsqueeze(1) #make it as a column (each row as position index)
         div_term = torch.exp(torch.arange(0, dmodel, 2).float()* (-math.log(10000.0)/dmodel)) #computes pos encoding formula- 10000 to the power −2i/dmodel​
-        pe[:, 0::2] = torch.sin(pos *div_term) # to even pos
-        pe[:, 1::2] = torch.cos(pos *div_term) # to add pos
+        pe[:, 0::2] = torch.sin(pos *div_term) # sin to even pos
+        pe[:, 1::2] = torch.cos(pos *div_term) # cos to odd pos
         pe = pe.unsqueeze(0)
         self.register_buffer("pe", pe)
         
@@ -42,8 +42,8 @@ class LayerNorm(nn.Module):
     def __init__(self, dmodel, epsilon: float=1e-6): #prevents division by zero
         super().__init__()
         self.epsilon = epsilon
-        self.alpha = nn.Parameter(torch.ones(dmodel))
-        self.bias = nn.Parameter(torch.zeros(dmodel))
+        self.alpha = nn.Parameter(torch.ones(dmodel)) # to multiply
+        self.bias = nn.Parameter(torch.zeros(dmodel)) # to add
         
     def forward(self, x):
         mean = x.mean(dim= -1, keepdim= True)
@@ -54,12 +54,13 @@ class FeedForward(nn.Module):
     def __init__(self, dmodel, dff, dropout):
         super().__init__()
         self.dropout = nn.Dropout(dropout)
-        self.linear0 = nn.Linear(dmodel, dff)
-        self.linear1 = nn.Linear(dff, dmodel) # dmodel -> dff -> dmodel
+        self.linear1 = nn.Linear(dmodel, dff) # W1 and B1
+        self.linear2 = nn.Linear(dff, dmodel) # W2 and B2
+        # dmodel -> dff -> dmodel
     
     def forward(self, x):
-        x = F.gelu(self.linear0(x)) # original paper uses RELU but GELU is a smoother modern variant
-        x = self.linear1(x)
+        x = F.gelu(self.linear1(x)) # original paper uses RELU but GELU is a smoother modern variant
+        x = self.linear2(x)
         return self.dropout(x)
     
 '''MULTI HEAD ATTENTION'''
